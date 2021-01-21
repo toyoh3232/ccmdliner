@@ -245,10 +245,10 @@ namespace utils
 		private:
 			std::string _msg;
 		};
-		class parse_result;
+		class parsed_result;
 		struct oprands_entity
 		{
-			friend class parse_result;
+			friend class parsed_result;
 			std::string operator[](int index) const
 			{
 				// if index is no int [size,size), just return empty string
@@ -258,27 +258,26 @@ namespace utils
 					return std::string();
 				return _parsed_result->_arguments[index];
 			}
+			size_t size()
+			{
+				return _parsed_result->_arguments.size();
+			}
 		private:
-			explicit oprands_entity(parse_result* base)
+			explicit oprands_entity(parsed_result* base)
 			{
 				_parsed_result = base;
 			}
 		private:
-			parse_result* _parsed_result;
+			parsed_result* _parsed_result;
 		};
-		
 		template <typename T>
 		struct option_result
 		{
 			bool ok;
 			T    result;
-
 		};
-		class parse_result
+		class parsed_result
 		{
-		public:
-			parse_result() = default;
-			friend class oprands_entity;
 		public:
 			std::string action() const
 			{
@@ -293,7 +292,7 @@ namespace utils
 					return {false, T()};
 				auto [v, f] = (*it).second;
 				if (!f)
-					f = commandline::parse_result::basic_castor<T>();
+					f = commandline::basic_castor<T>();
 				return { true, std::get<T>(f(v))};
 			}
 			oprands_entity oprands = oprands_entity(this);
@@ -304,19 +303,21 @@ namespace utils
 				customized_cast_func castor;
 			};
 		private:
+			parsed_result() = default;
+			friend class oprands_entity;
 			friend class commandline;
+		private:
 			std::string _action;
 			std::map<std::string, option_val> _options;
 			std::vector<std::string> _arguments;
-		public:
+		};
+	public:
 			template<typename T>
 			static customized_cast_func basic_castor();
-		};
-		
-
-		parse_result parse(int argc, char* argv[])
+	public:
+		parsed_result parse(int argc, char* argv[])
 		{
-			parse_result res;
+			parsed_result res;
 			std::vector<std::string> arguments;
 			for (int i = 1; i < argc; i++)
 				arguments.push_back(std::string(argv[i]));
@@ -354,7 +355,6 @@ namespace utils
 			// parse options
 			while (!_options.empty())
 			{
-				// 
 				if (arguments.empty())
 					break;
 				// if argument[0] is not started with delimiter, then it is an operand
@@ -364,7 +364,14 @@ namespace utils
 				std::string arg = arguments[0].substr(arguments[0].find(helper::delimiter()) + 1);
 				std::string val = "true";
 				// if argument has explicit value
-				if (auto i = arg.find(":"); i != std::string::npos)
+				#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
+					char splitter = '=';
+				#elif defined(_WIN32)
+					char splitter = ':';
+				#else
+					static_assert(false, "unrecognized platform");
+				#endif
+				if (auto i = arg.find(splitter); i != std::string::npos)
 				{
 					val = arg.substr(i + 1);
 					arg = arg.substr(0, i);
@@ -399,7 +406,7 @@ namespace utils
 	};
 	// template cast function speciallization
 	template<>
-	inline customized_cast_func commandline::parse_result::basic_castor<bool>()
+	inline customized_cast_func commandline::basic_castor<bool>()
 	{
 		return [](const std::string& str)
 		{
@@ -409,7 +416,7 @@ namespace utils
 		};
 	}
 	template<>
-	inline customized_cast_func commandline::parse_result::basic_castor<long long>()
+	inline customized_cast_func commandline::basic_castor<long long>()
 	{
 		return [](const std::string& str)
 		{
@@ -431,7 +438,7 @@ namespace utils
 		};
 	}
 	template<>
-	inline customized_cast_func commandline::parse_result::basic_castor<int>()
+	inline customized_cast_func commandline::basic_castor<int>()
 	{
 		return [](const std::string& str)
 		{
@@ -453,7 +460,7 @@ namespace utils
 		};
 	}
 	template<>
-	inline customized_cast_func commandline::parse_result::basic_castor<std::string>()
+	inline customized_cast_func commandline::basic_castor<std::string>()
 	{
 		return [](const std::string& str)
 		{
