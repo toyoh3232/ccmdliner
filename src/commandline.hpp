@@ -12,7 +12,10 @@
 #include <iomanip>
 #include <fstream>
 #if defined(_WIN32)
-	#include <windows.h>
+#include <windows.h>
+#endif
+#if defined(_GNU_SOURCE)
+#include <errno.h>
 #endif
 namespace utils
 {
@@ -68,7 +71,10 @@ namespace utils
 		}
 		inline std::string exec_name()
 		{
-		#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
+		# if defined(_GNU_SOURCE) // if GNU extension could be used
+			std::string sp(program_invocation_short_name);
+			return sp;
+		#elif defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
 			std::string sp;
 			std::ifstream("/proc/self/comm") >> sp;
 			return sp;
