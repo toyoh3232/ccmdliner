@@ -1,5 +1,10 @@
+# Ignore executables without extension
+*
+!*.*
+!*/
+
 # Vscode settings
-.vscode/*
+.vscode
 *.code-workspace
 
 # Local History for Visual Studio Code
@@ -40,9 +45,3 @@
 *.exe
 *.out
 *.app
-
-# Ignore executables without extension
-*
-!*.*
-!*/
-
