@@ -11,6 +11,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstring>
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -45,7 +46,7 @@ namespace utils
 			static_assert(false, "unrecognized platform");
 		#endif
 		}
-		inline std::string dnormalize(const std::string& str)
+		inline std::string denormalize(const std::string& str)
 		{
 		#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
 			return str;
@@ -152,15 +153,15 @@ namespace utils
 			customized_cast_func castor;
 		};
 	public:
-		void add_action(std::string name, std::string help_msg, int number_of_args_expected = 0)
+		void add_action(const std::string& name, const std::string& help_msg, int number_of_args_expected = 0)
 		{
-			// TODO: occurence check
+			// occurrence check
 			_actions[helper::normalize(name)] = { help_msg, number_of_args_expected };
 		}
-		void add_option(std::string name, std::string help_msg, customized_cast_func custmized_castor = customized_cast_func())
+		void add_option(const std::string& name, const std::string& help_msg, customized_cast_func customized_castor = customized_cast_func())
 		{
-			// TODO: occurence check
-			_options[helper::normalize(name)] = { help_msg, custmized_castor };
+			// occurrence check
+			_options[helper::normalize(name)] = { help_msg, customized_castor };
 		}
 		std::string usage() const
 		{
@@ -179,7 +180,7 @@ namespace utils
 				oss << "Supported actions:" << std::endl;
 				for (auto& p : _actions) {
 					auto& action = p.first;
-					oss << "  " << std::setw(40) << helper::dnormalize(action) << p.second.help_msg << std::endl;
+					oss << "  " << std::setw(40) << helper::denormalize(action) << p.second.help_msg << std::endl;
 				}
 			}
 			// display options
@@ -189,7 +190,7 @@ namespace utils
 				oss << "Supported options:" << std::endl;
 				for (auto& p : _options) {
 					auto option = helper::delimiter(p.first);
-					oss << "  " << std::setw(40) << helper::dnormalize(option) << p.second.help_msg << std::endl;
+					oss << "  " << std::setw(40) << helper::denormalize(option) << p.second.help_msg << std::endl;
 				}
 			}
 			// display example
@@ -244,35 +245,58 @@ namespace utils
 		private:
 			std::string _msg;
 		};
+		class parse_result;
+		struct oprands_entity
+		{
+			friend class parse_result;
+			std::string operator[](int index) const
+			{
+				// if index is no int [size,size), just return empty string
+				if (index < 0)
+					index = index + _parsed_result->_arguments.size();
+				if (index < 0 || index  >= _parsed_result->_arguments.size())
+					return std::string();
+				return _parsed_result->_arguments[index];
+			}
+		private:
+			explicit oprands_entity(parse_result* base)
+			{
+				_parsed_result = base;
+			}
+		private:
+			parse_result* _parsed_result;
+		};
+		
+		template <typename T>
+		struct option_result
+		{
+			bool ok;
+			T    result;
+
+		};
 		class parse_result
 		{
 		public:
 			parse_result() = default;
+			friend class oprands_entity;
 		public:
 			std::string action() const
 			{
 				return _action;
 			}
-			std::string operator[](const int index) const
-			{
-				return _arguments[index];
-			}
-			bool has_option(std::string op)
-			{
-				return this->_options.find(op) != this->_options.end();
-			}
 			template< typename T = bool>
-			inline T option_value(std::string op) const
+			inline option_result<T> option(const std::string& op) const
 			{
 				static_assert(std::is_same<bool, T>() || std::is_same<int, T>() || std::is_same<long long, T>() || std::is_same<std::string, T>(), "unsupported type");
 				auto it = _options.find(op);
 				if (it == _options.end())
-					throw std::runtime_error(helper::format("option '{0}' not founded", op));
+					return {false, T()};
 				auto [v, f] = (*it).second;
 				if (!f)
 					f = commandline::parse_result::basic_castor<T>();
-				return std::get<T>(f(v));
+				return { true, std::get<T>(f(v))};
 			}
+			oprands_entity oprands = oprands_entity(this);
 		private:
 			struct option_val
 			{
@@ -284,10 +308,12 @@ namespace utils
 			std::string _action;
 			std::map<std::string, option_val> _options;
 			std::vector<std::string> _arguments;
-		private:
+		public:
 			template<typename T>
 			static customized_cast_func basic_castor();
 		};
+		
+
 		parse_result parse(int argc, char* argv[])
 		{
 			parse_result res;
@@ -357,9 +383,9 @@ namespace utils
 			// parse operands
 			// expected number of operands not match
 			if (nae >= 0 && arguments.size() > nae)
-				throw parsed_error("too many operands", helper::format("The action '{0}' needs {1} operand(s).", helper::dnormalize(res._action), nae));
+				throw parsed_error("too many operands", helper::format("The action '{0}' needs {1} operand(s).", helper::denormalize(res._action), nae));
 			if (nae >= 0 && arguments.size() < nae)
-				throw parsed_error("not enough operands", helper::format("The action '{0}' needs {1} operand(s).", helper::dnormalize(res._action), nae));
+				throw parsed_error("not enough operands", helper::format("The action '{0}' needs {1} operand(s).", helper::denormalize(res._action), nae));
 			// if no constraint or number_of_args_expected constraint
 			for (auto& s : arguments)
 			{
@@ -379,7 +405,7 @@ namespace utils
 		{
 			if (helper::normalize(str) == helper::normalize("true"))
 				return true;
-			return helper::normalize(str) == helper::normalize("false") ? false : throw parsed_error(helper::format("invalid option value: '{0}'", str));
+			return helper::normalize(str) == helper::normalize("false") ? false : throw parsed_error(helper::format("invalid option value '{0}'", str));
 		};
 	}
 	template<>
@@ -390,13 +416,15 @@ namespace utils
 			// use std::from_chars
 			long long result;
 			auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
+			if (std::strlen(p) != 0)
+				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal", str));
 			switch (ec)
 			{
 			case std::errc::invalid_argument:
-				throw parsed_error("no pattern match");
+				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal", str));
 				break;
 			case std::errc::result_out_of_range:
-				throw parsed_error("out of range, int");
+				throw parsed_error("out of range", helper::format("The option value '{0}' is beyond the range of type 'long long'.", str));
 				break;
 			}
 			return result;
@@ -410,13 +438,15 @@ namespace utils
 			// use std::from_chars
 			int result;
 			auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
+			if (std::strlen(p) != 0)
+				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal", str));
 			switch (ec)
 			{
 			case std::errc::invalid_argument:
-				throw parsed_error("no pattern match");
+				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal", str));
 				break;
 			case std::errc::result_out_of_range:
-				throw parsed_error("out of range, long long");
+				throw parsed_error("out of range", helper::format("The option value '{0}' is beyond the range of type 'int'.", str));
 				break;
 			}
 			return result;
