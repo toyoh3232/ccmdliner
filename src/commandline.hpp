@@ -12,7 +12,7 @@
 #include <iomanip>
 #include <fstream>
 #if defined(_WIN32)
-#include <windows.h>
+	#include <windows.h>
 #endif
 namespace utils
 {
@@ -34,33 +34,33 @@ namespace utils
 		}
 		inline std::string normalize(const std::string& str)
 		{
-#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
+		#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
 			return str;
-#elif defined(_WIN32)
+		#elif defined(_WIN32)
 			return to_lower(str);
-#else
+		#else
 			static_assert(false, "unrecognized platform");
-#endif
+		#endif
 		}
 		inline std::string dnormalize(const std::string& str)
 		{
-#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
+		#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
 			return str;
-#elif defined(_WIN32)
+		#elif defined(_WIN32)
 			return to_upper(str);
-#else
+		#else
 			static_assert(false, "unrecognized platform");
-#endif
+		#endif
 		}
 		inline std::string delimiter()
 		{
-#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
+		#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
 			return  "-";
-#elif defined(_WIN32)
+		#elif defined(_WIN32)
 			return "/";
-#else
+		#else
 			static_assert(false, "unrecognized platform");
-#endif
+		#endif
 		}
 		inline std::string delimiter(const std::string& op)
 		{
@@ -68,11 +68,11 @@ namespace utils
 		}
 		inline std::string exec_name()
 		{
-#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
+		#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
 			std::string sp;
 			std::ifstream("/proc/self/comm") >> sp;
 			return sp;
-#elif defined(_WIN32)
+		#elif defined(_WIN32)
 			char buf[MAX_PATH];
 			GetModuleFileNameA(nullptr, buf, MAX_PATH);
 			std::string name = buf;
@@ -80,9 +80,9 @@ namespace utils
 			if (p != std::string::npos)
 				return name.substr(p + 1);
 			return name;
-#else
+		#else
 			static_assert(false, "unrecognized platform");
-#endif
+		#endif
 		}
 		namespace hidden
 		{
@@ -213,13 +213,13 @@ namespace utils
 		public:
 			explicit parsed_error(const std::string& msg) : std::logic_error(msg)
 			{
-#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
+			#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
 				std::string op = "help";
-#elif defined(_WIN32)
+			#elif defined(_WIN32)
 				std::string op = "?";
-#else
+			#else
 				static_assert(false, "unrecognized platform");
-#endif
+			#endif
 				auto em = helper::format("{0}: {1}", helper::exec_name(), std::logic_error::what());
 				auto hm = helper::format("Try '{0} {1}' for more information.", helper::exec_name(), helper::delimiter(op));
 				_msg = helper::format("{0}\n{1}", em, hm);
@@ -291,13 +291,13 @@ namespace utils
 			// if help option is set in the arguments, show usage
 			if (!arguments.empty())
 			{
-#if  defined(_WIN32)
+			#if  defined(_WIN32)
 				if (arguments[0] == "/?")
 				{
 					std::cout << usage() << std::endl;
 					exit(0);
 				}
-#endif
+			#endif
 				if (helper::normalize(arguments[0]) == helper::normalize(helper::delimiter("help")))
 				{
 					std::cout << usage() << std::endl;
@@ -322,6 +322,9 @@ namespace utils
 			// parse options
 			while (!_options.empty())
 			{
+				// 
+				if (arguments.empty())
+					break;
 				// if argument[0] is not started with delimiter, then it is an operand
 				if (arguments[0].find(helper::delimiter()) != 0)
 					break;
