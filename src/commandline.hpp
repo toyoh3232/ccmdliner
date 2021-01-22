@@ -120,12 +120,12 @@ namespace utils
 				}
 			}
 		}
-		inline std::string format(std::string fmt)
+		inline std::string format(const std::string& fmt)
 		{
 			return fmt;
 		}
 		template<typename T, typename ...Args>
-		std::string format(std::string fmt, T val, Args&&... args)
+		std::string format(std::string fmt, T&& val, Args&&... args)
 		{
 			hidden::replace(fmt, val, sizeof... (args));
 			return format(fmt, args...);
@@ -145,7 +145,7 @@ namespace utils
 		struct action
 		{
 			std::string help_msg;
-			int number_of_args_expected = 0;
+			int number_of_oprands_expected;
 		};
 		struct option
 		{
@@ -153,10 +153,11 @@ namespace utils
 			customized_cast_func castor;
 		};
 	public:
-		void add_action(const std::string& name, const std::string& help_msg, int number_of_args_expected = 0)
+		// default number of expected operands is -1, means any   
+		void add_action(const std::string& name, const std::string& help_msg, int number_of_oprands_expected = -1)
 		{
 			// occurrence check
-			_actions[helper::normalize(name)] = { help_msg, number_of_args_expected };
+			_actions[helper::normalize(name)] = { help_msg, number_of_oprands_expected };
 		}
 		void add_option(const std::string& name, const std::string& help_msg, customized_cast_func customized_castor = customized_cast_func())
 		{
@@ -346,9 +347,16 @@ namespace utils
 				if (arguments[0].find("/") == 0 && !_options.empty())
 					throw parsed_error("no action", "Action shoud appear before options.");
 				if (_actions.find(helper::normalize(arguments[0])) == _actions.end())
+				{
+					if (auto it=std::find_if(_actions.begin(),_actions.end(),[&](auto& p) 
+					   {
+						   return helper::normalize(arguments[0]).find(p.first) != std::string::npos; 
+					   }); it != std::end(_actions))
+						   throw parsed_error(helper::format("unknown action '{0}'", arguments[0]), helper::format("Do you mean action '{0}'?",it->first));
 					throw parsed_error(helper::format("unknown action '{0}'", arguments[0]));
+				}
 				res._action = arguments[0];
-				nae = _actions[res._action].number_of_args_expected;
+				nae = _actions[res._action].number_of_oprands_expected;
 				// remove the action string in current argument sequence
 				arguments.erase(arguments.begin());
 			}
@@ -376,14 +384,18 @@ namespace utils
 					val = arg.substr(i + 1);
 					arg = arg.substr(0, i);
 				}
-				auto it = _options.find(helper::normalize(arg));
 				// if argument is not found in configuration table for options
-				if (it == _options.end())
+				if (_options.find(helper::normalize(arg)) == _options.end())
 				{
+					if (auto it=std::find_if(std::begin(_options), std::end(_options), [&](auto& p)
+					{
+						return helper::normalize(arg).find(p.first) != std::string::npos; 
+					}); it != std::end(_options))
+						throw parsed_error(helper::format("unknown option '{0}{1}'",helper::delimiter(), arg), helper::format("Do you mean option '{0}{1}'?",helper::delimiter(), it->first));
 					throw parsed_error(helper::format("unknown option '{0}{1}'", helper::delimiter(), arg));
 				}
 				// redundant option is allowed
-				res._options[helper::normalize(arg)] = { val, (*it).second.castor };
+				res._options[helper::normalize(arg)] = { val, _options[helper::normalize(arg)].castor};
 				// delete this argument which has been parsed
 				arguments.erase(arguments.begin());
 			}
@@ -393,7 +405,7 @@ namespace utils
 				throw parsed_error("too many operands", helper::format("The action '{0}' needs {1} operand(s).", helper::denormalize(res._action), nae));
 			if (nae >= 0 && arguments.size() < nae)
 				throw parsed_error("not enough operands", helper::format("The action '{0}' needs {1} operand(s).", helper::denormalize(res._action), nae));
-			// if no constraint or number_of_args_expected constraint
+			// if no constraint or number_of_oprands_expected constraint
 			for (auto& s : arguments)
 			{
 				// options appearance failure
