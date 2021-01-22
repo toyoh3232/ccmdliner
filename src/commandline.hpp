@@ -344,7 +344,7 @@ namespace utils
 				if (arguments.empty())
 					throw parsed_error("no action");
 				if (arguments[0].find("/") == 0 && !_options.empty())
-					throw parsed_error("no action", "Action shoud appear before options");
+					throw parsed_error("no action", "Action shoud appear before options.");
 				if (_actions.find(helper::normalize(arguments[0])) == _actions.end())
 					throw parsed_error(helper::format("unknown action '{0}'", arguments[0]));
 				res._action = arguments[0];
@@ -424,11 +424,11 @@ namespace utils
 			long long result;
 			auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
 			if (std::strlen(p) != 0)
-				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal", str));
+				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal.", str));
 			switch (ec)
 			{
 			case std::errc::invalid_argument:
-				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal", str));
+				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal.", str));
 				break;
 			case std::errc::result_out_of_range:
 				throw parsed_error("out of range", helper::format("The option value '{0}' is beyond the range of type 'long long'.", str));
@@ -446,11 +446,11 @@ namespace utils
 			int result;
 			auto [p, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
 			if (std::strlen(p) != 0)
-				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal", str));
+				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal.", str));
 			switch (ec)
 			{
 			case std::errc::invalid_argument:
-				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal", str));
+				throw parsed_error("invalid pattern", helper::format("The option value '{0}' does not seem to be a decimal.", str));
 				break;
 			case std::errc::result_out_of_range:
 				throw parsed_error("out of range", helper::format("The option value '{0}' is beyond the range of type 'int'.", str));
