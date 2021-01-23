@@ -288,12 +288,29 @@ namespace utils
 			inline option_result<T> option(const std::string& op) const
 			{
 				static_assert(std::is_same<bool, T>() || std::is_same<int, T>() || std::is_same<long long, T>() || std::is_same<std::string, T>(), "unsupported type");
+				// if op is not an valid option name, just return not found
 				auto it = _options.find(op);
 				if (it == _options.end())
 					return {false, T()};
 				auto [v, f] = (*it).second;
 				if (!f)
 					f = commandline::basic_castor<T>();
+				// true is default for option's value if no option value is specified
+				if constexpr (std::is_same<bool, T>())
+				{
+					if (v.empty())
+						f = [](const std::string& str) {return true;};
+				}
+				if constexpr (std::is_same<int, T>() || std::is_same<long long, T>())
+				{
+					if (v.empty())
+						throw parsed_error("invalid option value", helper::format("The option '{0}' need a specified decimal option value.", op));
+				}
+				if constexpr (std::is_same<std::string, T>())
+				{
+					if (v.empty())
+						throw parsed_error("invalid option value", helper::format("The option '{0}' need a specified option value.", op));
+				}
 				return { true, std::get<T>(f(v))};
 			}
 			oprands_entity oprands = oprands_entity(this);
@@ -350,7 +367,7 @@ namespace utils
 				{
 					if (auto it=std::find_if(_actions.begin(),_actions.end(),[&](auto& p) 
 					   {
-						   return helper::normalize(arguments[0]).find(p.first) != std::string::npos; 
+						   return helper::normalize(arguments[0]).find(p.first) != std::string::npos || helper::normalize(p.first).find(arguments[0]) != std::string::npos; 
 					   }); it != std::end(_actions))
 						   throw parsed_error(helper::format("unknown action '{0}'", arguments[0]), helper::format("Do you mean action '{0}'?",it->first));
 					throw parsed_error(helper::format("unknown action '{0}'", arguments[0]));
@@ -370,7 +387,8 @@ namespace utils
 					break;
 				// initialize the default
 				std::string arg = arguments[0].substr(arguments[0].find(helper::delimiter()) + 1);
-				std::string val = "true";
+				//default option value
+				std::string val = "";
 				// if argument has explicit value
 				#if defined(PLATFORM_POSIX) || defined(__linux__) // check defines for your setup
 					char splitter = '=';
@@ -389,7 +407,7 @@ namespace utils
 				{
 					if (auto it=std::find_if(std::begin(_options), std::end(_options), [&](auto& p)
 					{
-						return helper::normalize(arg).find(p.first) != std::string::npos; 
+						return helper::normalize(arg).find(p.first) != std::string::npos || helper::normalize(p.first).find(arg); 
 					}); it != std::end(_options))
 						throw parsed_error(helper::format("unknown option '{0}{1}'",helper::delimiter(), arg), helper::format("Do you mean option '{0}{1}'?",helper::delimiter(), it->first));
 					throw parsed_error(helper::format("unknown option '{0}{1}'", helper::delimiter(), arg));
@@ -424,7 +442,8 @@ namespace utils
 		{
 			if (helper::normalize(str) == helper::normalize("true"))
 				return true;
-			return helper::normalize(str) == helper::normalize("false") ? false : throw parsed_error(helper::format("invalid option value '{0}'", str));
+			return helper::normalize(str) == helper::normalize("false") ? false : throw parsed_error(helper::format("invalid option value '{0}'", str), 
+				helper::format("The option value is either '{0}' or '{1}'.", helper::denormalize("true"), helper::denormalize("false")));
 		};
 	}
 	template<>
