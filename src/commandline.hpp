@@ -314,6 +314,17 @@ namespace utils
 				return { true, std::get<T>(f(v))};
 			}
 			oprands_entity oprands = oprands_entity(this);
+		public:
+			// user defined copy constructor enabled since  oprands._parsed_result should always be itself
+			parsed_result(parsed_result& result)
+			{
+				this->oprands._parsed_result = this;
+				this->_action = result._action;
+				this->_arguments = result._arguments;
+				this->_options = result._options;
+			}
+			// disable copy assignment operator
+			parsed_result& operator=(const parsed_result&) = delete;
 		private:
 			struct option_val
 			{
